@@ -1,3 +1,4 @@
+import compression from 'compression';
 import express, { Router } from 'express';
 import path from 'path';
 interface Options {
@@ -21,6 +22,7 @@ export class Server {
   public async start(): Promise<void> {
     this._app.use(express.json());
     this._app.use(express.urlencoded({ extended: true }));
+    this._app.use(compression());
     this._app.use(express.static(this._publicPath));
     this._app.use(this._routes);
     this._app.get('/{*splat}', (req, res) => {

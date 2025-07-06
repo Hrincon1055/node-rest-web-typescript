@@ -1,108 +1,65 @@
 import { Request, Response } from 'express';
-import { prisma } from '../../data/postgres';
+import {
+  CreateTodoUseCase,
+  DeleteTodoUseCase,
+  GetTodosUseCase,
+  GetTodoUseCase,
+  TodoRepository,
+  UpdateTodoUseCase,
+} from '../../domain';
 import { CreateTodoDto, UpdateTodoDto } from '../../domain/dtos';
 
 export class TodosController {
-  constructor() {}
+  constructor(private readonly _todoRepository: TodoRepository) {}
 
-  public getTodos = async (req: Request, res: Response): Promise<void> => {
-    const todos = await prisma.todo.findMany();
-    res.json(todos);
-    return;
+  public getTodos = (req: Request, res: Response): void => {
+    new GetTodosUseCase(this._todoRepository)
+      .execute()
+      .then((todos) => res.status(200).json(todos))
+      .catch((error) => res.status(400).json({ error }));
   };
 
-  public getTodoById = async (
-    req: Request,
-    res: Response
-  ): Promise<void> => {
+  public getTodoById = (req: Request, res: Response): void => {
     const id = +req.params.id;
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'Invalid ID format' });
-      return;
-    }
-    const todo = await prisma.todo.findFirst({
-      where: {
-        id,
-      },
-    });
-
-    if (!todo) {
-      res.status(404).json({ error: 'Todo not found' });
-      return;
-    }
-    res.status(200).json(todo);
-    return;
+    new GetTodoUseCase(this._todoRepository)
+      .execute(id)
+      .then((todo) => res.status(200).json(todo))
+      .catch((error) => res.status(400).json({ error }));
   };
 
-  public createTodo = async (
-    req: Request,
-    res: Response
-  ): Promise<void> => {
+  public createTodo = (req: Request, res: Response): void => {
     const [error, createTodoDto] = CreateTodoDto.create(req.body || {});
     if (error || !createTodoDto) {
       res.status(400).json({ error });
+      return;
     }
-    const todo = await prisma.todo.create({
-      data: createTodoDto!,
-    });
-    res.status(201).json(todo);
+    new CreateTodoUseCase(this._todoRepository)
+      .execute(createTodoDto)
+      .then((todo) => res.status(201).json(todo))
+      .catch((error) => res.status(400).json({ error }));
   };
 
-  public updateTodo = async (
-    req: Request,
-    res: Response
-  ): Promise<void> => {
+  public updateTodo = (req: Request, res: Response): void => {
     const id = +req.params.id;
     const [error, updateTodoDto] = UpdateTodoDto.create({
       ...req.body,
       id,
     });
-    if (error) {
+    if (error || !updateTodoDto) {
       res.status(400).json({ error });
       return;
     }
-    const todo = await prisma.todo.findFirst({
-      where: {
-        id,
-      },
-    });
-    if (!todo) {
-      res.status(404).json({ error: 'Todo not found' });
-      return;
-    }
-    const updateTodo = await prisma.todo.update({
-      where: { id },
-      data: updateTodoDto!.values,
-    });
-    res.status(200).json(updateTodo);
-    return;
+    new UpdateTodoUseCase(this._todoRepository)
+      .execute(updateTodoDto)
+      .then((todo) => res.status(200).json(todo))
+      .catch((error) => res.status(400).json({ error }));
   };
 
-  public deleteTodo = async (
-    req: Request,
-    res: Response
-  ): Promise<void> => {
+  public deleteTodo = (req: Request, res: Response): void => {
     const id = +req.params.id;
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'Invalid ID format' });
-      return;
-    }
-    const todo = await prisma.todo.findFirst({
-      where: {
-        id,
-      },
-    });
-
-    if (!todo) {
-      res.status(404).json({ error: 'Todo not found' });
-      return;
-    }
-    const todoDeleted = await prisma.todo.delete({
-      where: { id },
-    });
-    todoDeleted
-      ? res.status(200).json(todoDeleted)
-      : res.status(404).json({ error: 'Todo not found' });
-    return;
+    new DeleteTodoUseCase(this._todoRepository)
+      .execute(id)
+      .then((todo) => res.status(200).json(todo))
+      .catch((error) => res.status(400).json({ error }));
   };
 }
